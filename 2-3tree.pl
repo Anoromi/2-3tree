@@ -2,22 +2,6 @@ is_node2(node2(_, _, _)).
 is_node3(node3(_, _, _, _, _)).
 branch(X) :- is_node2(X); is_node3(X).
 
-% greatest(node2(_, _, NR), R) :- branch(NR), greatest(NR, R2), R = R2.
-% greatest(node2(I, _, empty), R) :- I = R.
-% greatest(node3(_, _, _, _, NR), R) :- branch(NR), greatest(NR, R2), R = R2.
-% greatest(node3(_, I, _, _, empty), R) :- I = R.
-
-% lowest(node2(_, NL, _), R) :- branch(NL), lowest(NL, R2), R = R2.
-% lowest(node2(I, empty, _), R) :- I = R.
-% lowest(node3(_, _, NL, _, _), R) :- branch(NL), lowest(NL, R2), R = R2.
-% lowest(node3(_, I, empty, _, _), R) :- I = R.
-
-% is_23tree(empty).
-% is_23tree(node2(I, NL, NR)) :- ((branch(NL), lowest(NL, LR), LR < I); NL = empty),
-%     ((branch(NR), greatest(NR, RR), RR > I); NR = empty).
-% is_23tree(node3(IL, IR, NL, NM, NR)) :- ((branch(NL), lowest(NL, LR), LR < IL); NL = empty),
-%     ((branch(NR), greatest(NR, RR), RR > IR); NR = empty),
-%     ((branch(NM), lowest(NM, MLR), MLR > IL, greatest(NM, MRR), MRR < IR); NM = empty).
 
 exists(node2(I, _, _), X) :- X = I.
 exists(node2(I, branch(NL), _), X) :- X < I, !, exists(NL, X).
@@ -72,69 +56,98 @@ insert_all(N, [], N).
 insert_all(N, [V | L], R) :- insert_node(N, V, R2), insert_all(R2, L, R), !.
 
 
-% delete_node(+Tree, +Value, -Result)
-% Deletes a value from the given 2-3 tree.
-delete_node(empty, _, empty).
-delete_node(node2(I, empty, empty), I, empty).
-delete_node(node2(I, NL, NR), V, R) :-
-    V < I,
-    delete_node(NL, V, NL2),
-    merge2(I, NL2, NR, R).
-delete_node(node2(I, NL, NR), V, R) :-
-    V > I,
-    delete_node(NR, V, NR2),
-    merge2(I, NL, NR2, R).
-delete_node(node3(IL, IR, empty, empty, empty), V, R) :-
-    (V = IL; V = IR),
-    R = node2(IL, empty, empty).
-delete_node(node3(IL, IR, NL, empty, NR), V, R) :-
-    V < IL,
-    delete_node(NL, V, NL2),
-    merge3(IL, IR, NL2, empty, NR, R).
-delete_node(node3(IL, IR, NL, empty, NR), V, R) :-
-    V = IL,
-    merge2(IR, NL, NR, R).
-delete_node(node3(IL, IR, NL, empty, NR), V, R) :-
-    V > IL,
-    V < IR,
-    delete_node(NR, V, NR2),
-    merge3(IL, IR, NL, empty, NR2, R).
-delete_node(node3(IL, IR, NL, NM, empty), V, R) :-
-    V = IR,
-    merge2(IL, NL, NM, R).
-delete_node(node3(IL, IR, NL, NM, empty), V, R) :-
-    V < IR,
-    delete_node(NM, V, NM2),
-    merge3(IL, IR, NL, NM2, empty, R).
-delete_node(node3(IL, IR, empty, NM, NR), V, R) :-
-    V = IL,
-    merge2(IR, NM, NR, R).
-delete_node(node3(IL, IR, empty, NM, NR), V, R) :-
-    V > IL,
-    V < IR,
-    delete_node(NM, V, NM2),
-    merge3(IL, IR, empty, NM2, NR, R).
-delete_node(node3(IL, IR, NL, NM, NR), V, R) :-
-    V = IL,
-    merge2(IR, NL, NM, R).
-delete_node(node3(IL, IR, NL, NM, NR), V, R) :-
-    V = IR,
-    merge2(IL, NM, NR, R).
-delete_node(node3(IL, IR, NL, NM, NR), V, R) :-
-    V < IL,
-    delete_node(NL, V, NL2),
-    merge3(IL, IR, NL2, NM, NR, R).
-delete_node(node3(IL, IR, NL, NM, NR), V, R) :-
-    V > IR,
-    delete_node(NR, V, NR2),
-    merge3(IL, IR, NL, NM, NR2, R).
-    
-% merge3(+L, +M, +LL, +MM, +RR, -Result)
-% Merges three nodes with the given values and children into a single node.
-merge3(L, M, LL, MM, RR, Result) :-
-    Result = node3(L, M, LL, MM, RR).
 
-% merge2(+I, +L, +R, -Result)
-% Merges two nodes with the given values and left and right children into a single node.
-merge2(I, L, R, Result) :-
-    Result = node2(I, L, R).
+handle_hole(X, hole(RBH), node2(Y, YNL, YNR), R) :- !,
+    R = hole(node3(X, Y, RBH, YNL, YNR)).
+handle_hole(X, node2(Y, YNL, YNR), hole(RBH), R) :- !,
+    R = hole(node3(Y, X, YNL, YNR, RBH)).
+handle_hole(X, hole(A), node3(Y, Z, B, C, D), R) :- !,
+    R = node2(Y, node2(X, A, B), node2(Z, C, D)).
+handle_hole(Z, node3(X, Y, A, B, C), hole(D), R) :- !,
+    R = node2(Y, node2(X, A, B), node2(Z, C, D)).
+handle_hole(Z, node3(X, Y, A, B, C), hole(D), R) :- !,
+    R = node2(Y, node2(X, A, B), node2(Z, C, D)).
+handle_hole(X, NL, NR, node2(X, NL, NR)). % When there is no hole do nothing
+
+handle_hole(X, Z, hole(A), node2(Y, B, C), D, R) :- !,
+    R = node2(Z, node3(X, Y, A, B, C), D).
+handle_hole(Y, Z, node2(X, A, B), hole(C), D, R) :- !,
+    R = node2(Z, node3(X, Y, A, B, C), D).
+handle_hole(X, Y, A, hole(B), node2(Z, C, D), R) :- !,
+    R = node2(X, A, node3(Y, Z, B, C, D)).
+handle_hole(X, Z, A, node2(Y, B, C), hole(D),  R) :- !,
+    R = node2(X, A, node3(Y, Z, B, C, D)).
+handle_hole(W, Z, hole(A), node3(X, Y, B, C, D), E, R) :- !,
+    R = node3(X, Z, node2(W, A, B), node2(Y, C, D), E).
+handle_hole(Y, Z, node3(W, X, A, B, C), hole(D), E, R) :- !,
+    R = node3(X, Z, node2(W, A, B), node2(Y, C, D), E).
+handle_hole(W, X, A, hole(B), node3(Y, Z, C, D, E), R) :- !,
+    R = node3(W, Y, A, node2(X, B, C), node2(Z, D, E)).
+handle_hole(W, Z, A, node3(X, Y, B, C, D), hole(E), R) :- !,
+    R = node3(W, Y, A, node2(X, B, C), node2(Z, D, E)).
+
+handle_hole(X, Y, NL, NM, NR, node3(X, Y, NL, NM, NR)). % When there is no hole do nothing
+
+
+
+is_hole(hole(N), N).
+
+delete_node(T, V, R) :-
+    delete_node_internal(T, V, RU),
+    (is_hole(RU, R), !;
+     R = RU
+    ).
+
+delete_node_internal(node3(IL, IR, empty, empty, empty), V, R) :-
+    IL = V, !, R = node2(IR, empty, empty);
+    IR = V, !, R = node(IL, empty, empty).
+delete_node_internal(node2(V, empty, empty), V, hole(empty)) :- !.
+
+% When value is in branch.
+delete_node_internal(node2(X, NL, NR), X, R) :-
+    take_successor(NR, X, I, RT),
+    delete_node_internal(RT, X, NRT),
+    handle_hole(I, NL, NRT, R).
+delete_node_internal(node3(X, IR, NL, NM, NR), X, R) :-
+    take_successor(NM, X, I, RT),
+    delete_node_internal(RT, X, NMT),
+    handle_hole(I, IR, NL, NMT, NR, R).
+delete_node_internal(node3(IL, X, NL, NM, NR), X, R) :-
+    take_successor(NR, X, I, RT),
+    delete_node_internal(RT, X, NRT),
+    handle_hole(IL, I, NL, NM, NRT, R).
+
+
+delete_node_internal(node2(X, NL, NR), V, R) :-
+    X > V, !,
+    delete_node_internal(NL, V, RB), % going downward to delete item
+    handle_hole(X, RB, NR, R). % handle having hole
+delete_node_internal(node2(X, NL, NR), V, R) :-
+    X < V, !,
+    delete_node_internal(NR, V, RB), % going downward to delete item
+    handle_hole(X, NL, RB, R). % handle having hole
+delete_node_internal(node3(IL, IR, NL, NM, NR), V, R) :-
+    IL > V, !,
+    delete_node_internal(NL, V, RB),
+    handle_hole(IL, IR, RB, NM, NR, R).
+delete_node_internal(node3(IL, IR, NL, NM, NR), V, R) :-
+    IL < V, V < IR, !,
+    delete_node_internal(NM, V, RB),
+    handle_hole(IL, IR, NL, RB, NR, R).
+delete_node_internal(node3(IL, IR, NL, NM, NR), V, R) :-
+    IR < V, !,
+    delete_node_internal(NR, V, RB),
+    handle_hole(IL, IR, NL, NM, RB, R).
+
+take_successor(node2(X, empty, empty), V, X, node2(V, empty, empty)) :- !.
+take_successor(node3(X, IR, empty, empty, empty), V, X, node3(V, IR, empty, empty, empty)) :- !.
+take_successor(node2(I, NL, NR), V, RV, RT) :-
+    take_successor(NL, V, RV, RNL), RT = node2(I, RNL, NR).
+take_successor(node3(IL, IR, NL, NM, NR), V, RV, RT) :-
+    take_successor(NL, V, RV, RNL), RT = node3(IL, IR, RNL, NM, NR).
+
+
+
+
+
+
